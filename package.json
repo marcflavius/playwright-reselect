@@ -1,0 +1,65 @@
+{
+  "name": "playwright-reselect",
+  "version": "0.3.0",
+  "description": "A tiny helper to wright test once and reuse the logic anywhere",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "e2e",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "NOTICE.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "CODE_OF_CONDUCT.md"
+  ],
+  "keywords": [
+    "playwright",
+    "reselect",
+    "testing",
+    "e2e",
+    "locators"
+  ],
+  "author": "marcflavius <u7081838225@gmail.com>",
+  "funding": "https://github.com/sponsors/marcflavius",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marcflavius/playwright-reselect.git"
+  },
+  "bugs": {
+    "url": "https://github.com/marcflavius/playwright-reselect/issues",
+    "email": "u7081838225@gmail.com"
+  },
+  "homepage": "https://github.com/marcflavius/playwright-reselect#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "npx tsx build.ts",
+    "test": "npx playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@types/node": "^24.10.2",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "playwright-reselect": "file:playwright-reselect-1.0.0.tgz"
+  },
+  "peerDependencies": {
+    "@playwright/test": "^1.57.0"
+  }
+}
