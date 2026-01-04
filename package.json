@@ -1,6 +1,6 @@
 {
   "name": "playwright-reselect",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "A tiny helper to wright test once and reuse the logic anywhere",
   "license": "MIT",
   "type": "module",
@@ -56,9 +56,7 @@
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   },
-  "dependencies": {
-    "playwright-reselect": "file:playwright-reselect-0.3.2.tgz"
-  },
+  "dependencies": {},
   "peerDependencies": {
     "@playwright/test": "^1.57.0"
   }
