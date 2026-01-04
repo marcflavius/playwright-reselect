@@ -57,7 +57,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "playwright-reselect": "file:playwright-reselect-1.0.0.tgz"
+    "playwright-reselect": "file:playwright-reselect-0.3.0.tgz"
   },
   "peerDependencies": {
     "@playwright/test": "^1.57.0"
