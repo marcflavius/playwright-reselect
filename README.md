@@ -72,7 +72,7 @@ Define a locator tree and use `reselectTree` in your tests:
 ```ts
 // definitions.ts
 import { test } from '@playwright/test';
-import { Ctx, LocatorTreeDescription, reselectTree } from 'playwright-reselect';
+import { Ctx, TreeDescription, reselectTree } from 'playwright-reselect';
 
 export const treeDescription = {
   playwrightHomePage: {
@@ -87,7 +87,7 @@ export const treeDescription = {
       },
     },
   },
-} satisfies LocatorTreeDescription; ⚠️ ⚠️ ‼️ // add this type to the tree to be type safe 
+} satisfies TreeDescription; ⚠️ ⚠️ ‼️ // add this type to the tree to be type safe 
 // when building the tree and spot quick tree structure mismatches
 
 ```
@@ -122,8 +122,9 @@ test('heading is visible', async ({ page }) => {
 
 ### Core concepts
 
-- `LocatorTreeDescription`: An object describing build rules for nodes. Each node must implement `build(ctx)` which updates `ctx.locator`.
--- `reselectTree(treeDescription)(page)`: Provide the tree description to `reselectTree` to get a function that accepts a Playwright `page` and returns an object with root node accessors. Calling a node runs its `build` and returns a node object.
+- `TreeDescription`: An object describing build rules for nodes. Each node must implement `build(ctx)` which updates `ctx.locator`. Build functions don't need an explicit return statement.
+- `BranchDescription`: Type for individual page/branch definitions that can be extracted as constants before being added to the tree.
+- `reselectTree(treeDescription)(page)`: Provide the tree description to `reselectTree` to get a function that accepts a Playwright `page` and returns an object with root node accessors. Calling a node runs its `build` and returns a node object.
 
 ### Node methods
 
@@ -192,7 +193,7 @@ const treeDescription = {
       }
     }
   }
-} satisfies LocatorTreeDescription;
+} satisfies TreeDescription;
 
 const root = reselectTree(treeDescription)(page);
 const home = root.playwrightHomePage();
@@ -221,7 +222,7 @@ const treeDescription = {
       }
     }
   }
-} satisfies LocatorTreeDescription;
+} satisfies TreeDescription;
 
 const root = reselectTree(treeDescription)(page);
 const home = root.playwrightHomePage();
@@ -253,7 +254,7 @@ const treeDescription = {
       }
     }
   }
-} satisfies LocatorTreeDescription;
+} satisfies TreeDescription;
 
 const root = reselectTree(treeDescription)(page);
 const home = root.playwrightHomePage();
@@ -295,7 +296,7 @@ const treeDescription = {
       }
     }
   }
-} satisfies LocatorTreeDescription;
+} satisfies TreeDescription;
 
 const root = reselectTree(treeDescription)(page);
 const home = root.playwrightHomePage();
@@ -359,7 +360,7 @@ const treeDescription = {
       },
     },
   },
-} satisfies LocatorTreeDescription;
+} satisfies TreeDescription;
 ```
 
 ### Reuse TreeDescription Branches Across UIs
@@ -367,7 +368,9 @@ const treeDescription = {
 Extract shared fragments (e.g., a header) into their own subtree and embed them in multiple page trees so you only update selectors once.
 
 ```ts
-// header branch
+// header branch - use BranchDescription for individual branches
+import { BranchDescription } from 'playwright-reselect';
+
 export const header = {
   build: (ctx: Ctx) => {
     ctx.locator = ctx.locator.locator('header');
@@ -384,7 +387,7 @@ export const header = {
       }
     },
   },
-} satisfies LocatorTreeDescription['someSharedSection'];
+} satisfies BranchDescription;
 ```
 
 ```ts
@@ -417,7 +420,7 @@ const treeDescription = {
       },
     },
   },
-} satisfies LocatorTreeDescription;
+} satisfies TreeDescription;
 
 const select = reselectTree(treeDescription);
 
