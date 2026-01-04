@@ -152,7 +152,7 @@ await home
   .heading()
   .inspect() // print [INSPECT] :root >> body >> heading
   .title()
-  .inspect() // print [inspect] :root >>  body >> heading >> h1
+  .inspect() // print [INSPECT] :root >>  body >> heading >> h1
   ,get()
 
 // use chained expectations
@@ -315,17 +315,16 @@ Use a variable to cache a subtree when you need multiple operations on it.
 
 ```ts
 const home = root.playwrightHomePage();
-const title = home
+const heading = home
   .heading()
-  .title();
 
-await title
-  .get()
-  .click();
+const title = await heading
+  .title()
+  .get();
 
-await title
-  .expectChain()
-  .toBeVisible();
+const gitHubLinks = await heading
+  .gitHubLinks()
+  .get();
 ```
 
 ## Advance
@@ -353,7 +352,7 @@ const treeDescription = {
           ctx.locator = ctx.locator.locator('.users');
         },
         custom: {
-          itemByIndex: (ctx: Ctx, i: number) => {
+          getItemByIndex: (ctx: Ctx, i: number) => {
             return ctx.locator.locator(`.user:nth-child(${i})`);
           },
         },
@@ -369,7 +368,7 @@ Extract shared fragments (e.g., a header) into their own subtree and embed them 
 
 ```ts
 // header branch - use BranchDescription for individual branches
-import { BranchDescription } from 'playwright-reselect';
+import type { BranchDescription } from 'playwright-reselect';
 
 export const header = {
   build: (ctx: Ctx) => {
