@@ -1,6 +1,6 @@
 {
   "name": "playwright-reselect",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "description": "A tiny helper to wright test once and reuse the logic anywhere",
   "license": "MIT",
   "type": "module",
@@ -49,12 +49,6 @@
   "scripts": {
     "build": "npx tsx build.ts",
     "test": "npx playwright test"
-  },
-  "devDependencies": {
-    "@playwright/test": "^1.57.0",
-    "@types/node": "^24.10.2",
-    "tsup": "^8.0.0",
-    "typescript": "^5.0.0"
   },
   "dependencies": {},
   "peerDependencies": {

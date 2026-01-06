@@ -22,11 +22,13 @@ type DescriptorType = {
  * @property {Function} build - Function that constructs the node within a given context.
  * @property {DescriptorType} [children] - Optional child node descriptors.
  * @property {Record<string, CustomFn>} [custom] - Optional mapping of custom function names to their implementations.
+ * @property {string} [alias] - Optional alias name for this node, allowing direct access from root.
  */
 type NodeDescription = {
     build: (ctx: Ctx) => void;
     children?: DescriptorType;
     custom?: Record<string, CustomFn>;
+    alias?: string;
 };
 /**
  * Utility: get the "user-visible" arguments of a CustomFn
@@ -34,10 +36,13 @@ type NodeDescription = {
  */
 type CustomFnArgs<T> = T extends (ctx: Ctx, ...args: infer A) => any ? A : never;
 /**
- * Description of a single branch/page in the locator tree.
- * Alias for NodeDescription to make usage more clear when defining individual pages.
+ * Helper to define a branch/node with proper type inference for aliases
  */
-type BranchDescription = NodeDescription;
+declare const defineBranch: <const T extends NodeDescription>(branch: T) => T;
+/**
+ * Helper to define the tree with proper type inference for aliases
+ */
+declare const defineTree: <const T extends TreeDescription>(tree: T) => T;
 /**
  * Description of the locator tree:
  * - build: how to update ctx.locator at this node
@@ -46,6 +51,49 @@ type BranchDescription = NodeDescription;
  */
 type TreeDescription = {
     [key: string]: NodeDescription;
+};
+/**
+ * Collect direct aliases (nodes with alias property) from a TreeDescription
+ */
+type DirectAliases<T extends TreeDescription> = {
+    [K in keyof T as T[K] extends {
+        alias: infer A extends string;
+    } ? A : never]: T[K];
+};
+/**
+ * Recursively collect all descendant aliases from nested children
+ */
+type NestedAliases<T extends TreeDescription> = UnionToIntersection<{
+    [K in keyof T]: T[K] extends {
+        children: infer C extends TreeDescription;
+    } ? DirectAliases<C> & NestedAliases<C> : {};
+}[keyof T]>;
+/**
+ * Helper type to convert union to intersection
+ */
+type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends ((k: infer I) => void) ? I : never;
+/**
+ * Extract all descendant aliases from a descriptor, merging all found aliases
+ */
+type ExtractDescendantAliases<D> = D extends {
+    children: infer C extends TreeDescription;
+} ? DirectAliases<C> & NestedAliases<C> : {};
+/**
+ * Type for the object returned by skipToAlias().
+ * Maps alias names to methods that jump directly to aliased descendant nodes.
+ *
+ * **TypeScript Navigation Limitation:**
+ * Ctrl+Click on alias method calls (e.g., `.headerLogo()`) shows the type definition,
+ * not the actual node source. This is a TypeScript limitation with mapped types.
+ *
+ * **Workaround:** Use destructuring for better IDE navigation:
+ * ```ts
+ * const { headerLogo, search } = select(page).app().skipToAlias();
+ * await headerLogo().click(); // Ctrl+Click on "headerLogo" works here
+ * ```
+ */
+type AliasesObject<D> = {
+    [K in keyof ExtractDescendantAliases<D>]: () => NodeFromDesc<ExtractDescendantAliases<D>[K] & NodeDescription>;
 };
 type Get = Locator & {
     debug: () => Promise<void>;
@@ -65,6 +113,7 @@ type NodeFromDesc<D extends {
     inspect: () => NodeFromDesc<D>;
     debug: () => Promise<void>;
     expectChain: () => ChainType;
+    skipToAlias: () => AliasesObject<D>;
 } & (D['children'] extends TreeDescription ? {
     [K in keyof D['children']]: () => NodeFromDesc<D['children'][K]>;
 } : {}) & (D['custom'] extends Record<string, CustomFn> ? {
@@ -74,7 +123,7 @@ declare const chain: any;
 type ChainType = {
     [K in keyof ReturnType<typeof expect<Locator>>]: ReturnType<typeof expect<Locator>>[K] extends (...a: infer A) => any ? (...a: A) => Promise<any> & typeof chain : never;
 };
-type LocatorExpect = ReturnType<typeof expect<Locator>>;
+type ExpectChain = ReturnType<typeof expect<Locator>>;
 
 /**
  * Root of the "in()" tree.
@@ -84,4 +133,4 @@ type InReturnFromDesc<T extends TreeDescription> = {
 };
 declare const reselectTree: <T extends TreeDescription>(treeDescription: T) => (page: Page) => InReturnFromDesc<T>;
 
-export { type BranchDescription, type Ctx, type LocatorExpect, type TreeDescription, reselectTree };
+export { type Ctx, type ExpectChain, defineBranch, defineTree, reselectTree };

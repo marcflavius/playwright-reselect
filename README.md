@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Playwright Reselect</h1>
-  <p><em>A tiny helper to wright test once and reuse the logic anywhere.</em></p>
+  <p><em>A tiny helper to write tests once and reuse the logic anywhere.</em></p>
 </div>
 
 <p align="center">
@@ -26,13 +26,13 @@ Playwright Reselect is a small utility to define tree-shaped locator descriptors
 
 ## Advantages
 
-- Describe the UI once reuse with ease
-- Multi UI description
-- Debug the dom easily
+- Describe the UI once, reuse with ease
+- Multiple UI descriptions
+- Debug the DOM easily
 - Inspect any link in the chain by printing the selector of the inspected node
 - Assert quickly
-- Test dynamic DOM update
-- On UI changes, Fix multiple tests once by updating the UI description
+- Test dynamic DOM updates
+- On UI changes, fix multiple tests at once by updating the UI description
 
 ## Table of contents
 
@@ -43,13 +43,19 @@ Playwright Reselect is a small utility to define tree-shaped locator descriptors
   - [Node methods](#node-methods)
   - [Quick Tour](#quick-tour)
   - [Examples](#examples)
+    - [Get a node](#get-a-node)
+    - [Debug current node](#debug-current-node)
+    - [Chained expectations](#chained-expectations)
+    - [Custom getter](#custom-getter)
+    - [Store a node in a variable](#store-a-node-in-a-variable-and-get-multiple-subparts-from-the-stored-variable)
+    - [Skip to Alias — Quick navigation ✨ NEW](#skip-to-alias--quick-navigation-to-deeply-nested-nodes--new)
 
-- [Advance](#advance)
-  - [Building the tree — Tips](#building-the-tree--tips)
-  - [Testing layout Setup](#testing-layout-setup)
+- [Advanced](#advanced)
+  - [Building the Tree — Tips](#building-the-tree--tips)
+  - [Testing Layout Setup](#testing-layout-setup)
   - [UI Tips](#ui-tips)
   - [Testing Dynamic Layout](#testing-dynamic-layout)
-  - [Reuse TreeDescription Branches Across UIs](#reuse-treedescription-branches-across-uis)
+  - [Reuse Tree Branches Across UIs](#reuse-tree-branches-across-uis)
 - [Security](#security)
 - [License](#license)
 
@@ -72,9 +78,9 @@ Define a locator tree and use `reselectTree` in your tests:
 ```ts
 // definitions.ts
 import { test } from '@playwright/test';
-import { Ctx, TreeDescription, reselectTree } from 'playwright-reselect';
+import { Ctx, reselectTree, defineTree } from 'playwright-reselect';
 
-export const treeDescription = {
+export const treeDescription = defineTree({
   playwrightHomePage: {
     build: (ctx: Ctx) => {
       ctx.locator = ctx.page.locator('body');
@@ -87,15 +93,14 @@ export const treeDescription = {
       },
     },
   },
-} satisfies TreeDescription; ⚠️ ⚠️ ‼️ // add this type to the tree to be type safe 
-// when building the tree and spot quick tree structure mismatches
+});
 
 ```
 
 ```ts
 // example.spec.ts
 import { test } from '@playwright/test';
-import { reselectTree, type LocatorExpect } from 'playwright-reselect';
+import { reselectTree, type ExpectChain } from 'playwright-reselect';
 import { treeDescription } from './definitions.ts';
 
 // create a root accessor function from the description
@@ -112,7 +117,7 @@ test('heading is visible', async ({ page }) => {
     .heading()
     .expectChain()
     .toBeVisible()
-    .then((c: LocatorExpect) => c.toHaveText(/Playwright/));
+    .then((c: ExpectChain) => c.toHaveText(/Playwright/));
 
 });
 
@@ -122,8 +127,9 @@ test('heading is visible', async ({ page }) => {
 
 ### Core concepts
 
-- `TreeDescription`: An object describing build rules for nodes. Each node must implement `build(ctx)` which updates `ctx.locator`. Build functions don't need an explicit return statement.
-- `BranchDescription`: Type for individual page/branch definitions that can be extracted as constants before being added to the tree.
+- `defineTree()`: Helper function to define your locator tree with proper type inference for aliases and autocomplete support.
+- `defineBranch()`: Helper function to define individual page/branch definitions that can be extracted as constants before being added to the tree.
+- Tree structure: An object describing build rules for nodes. Each node must implement `build(ctx)` which updates `ctx.locator`. Build functions don't need an explicit return statement.
 - `reselectTree(treeDescription)(page)`: Provide the tree description to `reselectTree` to get a function that accepts a Playwright `page` and returns an object with root node accessors. Calling a node runs its `build` and returns a node object.
 
 ### Node methods
@@ -133,7 +139,7 @@ test('heading is visible', async ({ page }) => {
 - `await node.debug()` — print a pretty HTML snapshot of the matched element.
 - `await node.expectChain()` — chainable async matchers mirroring Playwright `expect`.
 - `node.<child>()` — move into a child node defined in `children`.
-- `node.<customName>(...args)` — call a custom getter method defined on the node (must accept `ctx` first and return a `Locator`). This is useful if you need to select multiple part of a node.
+- `node.<customName>(...args)` — call a custom getter method defined on the node (must accept `ctx` first and return a `Locator`). This is useful if you need to select multiple parts of a node.
 
 ### Quick Tour
 
@@ -159,7 +165,7 @@ await home
 await home.heading().title()
   .expectChain()
   .toBeVisible()
-  .then((c: LocatorExpect) => c.toHaveText(/Playwright/));
+  .then((c: ExpectChain) => c.toHaveText(/Playwright/));
 
 // call a custom getter defined on the node (returns a wrapped locator)
 await home.heading()
@@ -173,7 +179,7 @@ await home.heading()
 
 ```ts
 // descriptor snapshot for this example
-const treeDescription = {
+const treeDescription = defineTree({
   playwrightHomePage: {
     build: (ctx: Ctx) => {
       ctx.locator = ctx.page.locator('body');
@@ -193,7 +199,7 @@ const treeDescription = {
       }
     }
   }
-} satisfies TreeDescription;
+});
 
 const root = reselectTree(treeDescription)(page);
 const home = root.playwrightHomePage();
@@ -209,7 +215,7 @@ await home
 
 ```ts
 // descriptor snapshot for this example
-const treeDescription = {
+const treeDescription = defineTree({
   playwrightHomePage: {
     build: (ctx: Ctx) => {
       ctx.locator = ctx.page.locator('body');
@@ -222,7 +228,7 @@ const treeDescription = {
       }
     }
   }
-} satisfies TreeDescription;
+});
 
 const root = reselectTree(treeDescription)(page);
 const home = root.playwrightHomePage();
@@ -234,7 +240,7 @@ await home.heading().debug();
 
 ```ts
 // descriptor snapshot for this example
-const treeDescription = {
+const treeDescription = defineTree({
   playwrightHomePage: {
     build: (ctx: Ctx) => { 
       ctx.locator = ctx.page.locator('body'); 
@@ -254,7 +260,7 @@ const treeDescription = {
       }
     }
   }
-} satisfies TreeDescription;
+});
 
 const root = reselectTree(treeDescription)(page);
 const home = root.playwrightHomePage();
@@ -271,7 +277,7 @@ await home
 
 ```ts
 // descriptor snapshot with a custom getter
-const treeDescription = {
+const treeDescription = defineTree({
   playwrightHomePage: {
     build: (ctx: Ctx) => {
       ctx.locator = ctx.page.locator('body');
@@ -296,7 +302,7 @@ const treeDescription = {
       }
     }
   }
-} satisfies TreeDescription;
+});
 
 const root = reselectTree(treeDescription)(page);
 const home = root.playwrightHomePage();
@@ -309,7 +315,7 @@ await home
   .toBeVisible();
 ```
 
-### store a node in a variable and get multiple subparts from the store variable
+### Store a node in a variable and get multiple subparts from the stored variable
 
 Use a variable to cache a subtree when you need multiple operations on it.
 
@@ -327,11 +333,104 @@ const gitHubLinks = await heading
   .get();
 ```
 
-## Advance
+### Skip to Alias — Quick navigation to deeply nested nodes ✨ NEW
+
+The `skipToAlias()` feature allows you to jump directly to deeply nested nodes without traversing the entire tree, making your tests more concise and maintainable.
+
+> **✨ NEW in v0.4.0**: Navigate to deeply nested nodes instantly using aliases with full TypeScript autocomplete support!
+
+#### Define aliases in your tree
+
+Tag an `alias` property to any node you want to access quickly:
+
+```ts
+...
+ nodeName: {
+  alias: 'aliasName'
+ }
+ ...
+```
+
+#### Use skipToAlias() to jump directly to aliased nodes
+
+Instead of traversing the entire tree, hop over!:
+
+```ts
+// Traditional way - verbose
+await root
+  .app()
+  .header()
+  .bottomSection()
+  .navigation()
+  .search()
+
+// With skipToAlias
+await root
+  .app().skipToAlias()
+  .search()
+
+// Preferred way to be used
+// extract the aliases from the top level node
+// Access multiple aliased nodes quickly
+const { headerLogo, menuBtn, search } = select(page).app().skipToAlias();
+
+```
+
+#### Benefits
+
+- **Type-safe**: Full TypeScript autocomplete for all alias names
+- **Scoped access**: `skipToAlias()` only shows aliases from descendant nodes (children and nested children)
+- **Maintainable**: Change the tree structure without updating test navigation paths
+- **Readable**: Makes test intent clearer by using semantic alias names
+
+#### Scoping rules
+
+```ts
+// From root, see all descendant aliases
+const rootAliases = root.app().skipToAlias();
+// ✅ rootAliases.headerLogo()
+// ✅ rootAliases.menuBtn()
+// ✅ rootAliases.search()
+
+// From header, only see header's descendant aliases
+const headerAliases = root.app().header().skipToAlias();
+// ✅ headerAliases.headerLogo()
+// ✅ headerAliases.menuBtn()
+// ❌ headerAliases.search() - not a descendant of header
+
+// From content, only see content's descendant aliases
+const contentAliases = root.app().content().skipToAlias();
+// ✅ contentAliases.search()
+// ❌ contentAliases.headerLogo() - not a descendant of content
+```
+
+#### TypeScript Navigation Limitation in (VS Code)
+
+**Limitation:** Ctrl+Click on alias method calls (e.g., `.headerLogoAlias()`) shows the type definition, not the actual node definition in the tree like when using a regular chain without an alias link. This is a TypeScript limitation with dynamically generated mapped types.
+
+**Workaround:** Extract aliases via destructuring for better IDE navigation:
+
+```ts
+// Extract commonly used aliases
+const { headerLogo, menuBtn, search } = select(page).app().skipToAlias();
+
+// Now Ctrl+Click on the destructured variables works
+await headerLogo().click();
+await menuBtn().hover();
+await expect(search()).toBeVisible();
+
+// Also improves test readability
+const { headerLogo, search } = select(page).app().skipToAlias();
+await headerLogo().click();
+await search().fill('playwright');
+await search().press('Enter');
+```
+
+## Advanced
 
 This section gives practical tips for building robust locator trees, structuring tests, and handling dynamic UI updates.
 
-### Building the tree — Tips
+### Building the Tree — Tips
 
 - Keep nodes small and focused: each node should represent a meaningful UI fragment (header, list, item).
 - Prefer composition over deep nesting: group related nodes under a parent rather than creating long access chains.
@@ -341,7 +440,7 @@ This section gives practical tips for building robust locator trees, structuring
 Example: reusable list node with a custom getter
 
 ```ts
-const treeDescription = {
+const treeDescription = defineTree({
   app: {
     build: (ctx: Ctx) => {
       ctx.locator = ctx.page.locator('#app');
@@ -359,18 +458,18 @@ const treeDescription = {
       },
     },
   },
-} satisfies TreeDescription;
+});
 ```
 
-### Reuse TreeDescription Branches Across UIs
+### Reuse Tree Branches Across UIs
 
 Extract shared fragments (e.g., a header) into their own subtree and embed them in multiple page trees so you only update selectors once.
 
 ```ts
-// header branch - use BranchDescription for individual branches
-import type { BranchDescription } from 'playwright-reselect';
+// header branch - use defineBranch for individual branches
+import { defineBranch } from 'playwright-reselect';
 
-export const header = {
+export const header = defineBranch({
   build: (ctx: Ctx) => {
     ctx.locator = ctx.locator.locator('header');
   },
@@ -386,13 +485,13 @@ export const header = {
       }
     },
   },
-} satisfies BranchDescription;
+});
 ```
 
 ```ts
 import { header } from './headerDescription'
 
-const treeDescription = {
+const treeDescription = defineTree({
   home: {
     build: (ctx: Ctx) => {
       ctx.locator = ctx.page.locator('body');
@@ -419,7 +518,7 @@ const treeDescription = {
       },
     },
   },
-} satisfies TreeDescription;
+});
 
 const select = reselectTree(treeDescription);
 
@@ -490,7 +589,7 @@ await item.waitFor({ state: 'visible', timeout: 5000 });
 await root
   .app()
   .userList()
-  .getItemByIndex(3);
+  .getItemByIndex(3)
   .expectChain()
   .toBeVisible();
 
@@ -511,6 +610,6 @@ This project is licensed under the MIT License — see the `LICENSE` file for de
 
 ---
 
-Author and Maintainers: marcflavius <u7081838225@gmail.com>
+Author and Maintainer: marcflavius <u7081838225@gmail.com>
 
-LOvE mAKING tHINGS sIMPLE ROCKET sCIENCE 🚀
+Love making things simple. Rocket science! 🚀
