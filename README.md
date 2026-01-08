@@ -140,12 +140,22 @@ test('heading is visible', async ({ page }) => {
 
 ### Node methods
 
-- `await node.get()` — returns a wrapped `Locator` with `.debug()`, `.expectChain()` helpers.
-- `await node.debug()` — print a pretty HTML snapshot of the matched element.
-- `await node.expectChain()` — chainable async matchers mirroring Playwright `expect`.
+- `node.get()` — after calling .get() you have access to all native Playwright methods with full autocomplete support, so everything you can do on a Playwright locator you can do when getting an item from the chain.
+
+- `node.<customName>(...args)` — call a custom getter method (eg: getButtonByType) defined on the node (must accept `ctx` first and return a `Locator`). This is useful if you need to select multiple parts of a node.
+
+<p align="center">
+ <img
+  src="https://raw.githubusercontent.com/marcflavius/playwright-reselect/main/dist/img/autocomplete.png"
+  alt="Playwright API autocomplete after .get()"
+  width="600"
+ />
+</p>
+
+- `node.debug()` — print a pretty HTML snapshot of the matched element.
+- `node.expectChain()` — chainable async matchers mirroring Playwright `expect`.
 - `node.inspect()` — logs the locator selector chain and returns the node for chaining.
 - `node.<child>()` — move into a child node defined in `children`.
-- `node.<customName>(...args)` — call a custom getter method defined on the node (must accept `ctx` first and return a `Locator`). This is useful if you need to select multiple parts of a node.
 - `node.skipToAlias()` — returns an object containing all aliased descendant nodes, allowing direct navigation to deeply nested nodes without traversing the full path.
 
 ### Quick Tour
@@ -416,7 +426,7 @@ Tag an `alias` property to any node you want to access quickly:
 
 Instead of traversing the entire tree, hop over! Consider this tree structure:
 
-```
+```text
 app
 ├── header
 │   ├── topSection
@@ -466,7 +476,7 @@ const {
 
 The `skipToAlias()` method provides access to aliases from descendant nodes (children and nested children) based on your current position in the tree. Here's a visual representation of the scope hierarchy:
 
-```
+```text
 app
 ├── header
 │   ├── topSection
@@ -551,7 +561,9 @@ export const header = defineBranch({
   },
 });
 ```
+
 Import header and use it to build the tree at multiple part (write one reuse anywhere)
+
 ```ts
 import { header } from './headerDescription'
 
