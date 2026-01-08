@@ -4,7 +4,12 @@
 </div>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/playwright-reselect"><img src="https://img.shields.io/npm/v/playwright-reselect.svg" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/playwright-reselect"><img src="https://img.shields.io/npm/dm/playwright-reselect.svg" alt="npm downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-Ready-blue.svg" alt="TypeScript"></a>
+  <a href="https://playwright.dev"><img src="https://img.shields.io/badge/Playwright-1.57+-45ba4b.svg" alt="Playwright"></a>
+  <a href="https://bundlephobia.com/package/playwright-reselect"><img src="https://img.shields.io/bundlephobia/minzip/playwright-reselect" alt="Bundle size"></a>
 </p>
 
 <p align="center">
