@@ -4,7 +4,7 @@
 </div>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style" alt="License"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
 </p>
 
 <p align="center">
@@ -42,18 +42,19 @@ Playwright Reselect is a small utility to define tree-shaped locator descriptors
   - [Core concepts](#core-concepts)
   - [Node methods](#node-methods)
   - [Quick Tour](#quick-tour)
+  - [Building the Tree — Tips](#building-the-tree--tips)
+  - [UI Tips](#ui-tips)
   - [Examples](#examples)
     - [Get a node](#get-a-node)
     - [Debug current node](#debug-current-node)
     - [Chained expectations](#chained-expectations)
     - [Custom getter](#custom-getter)
+    - [Reusable list with custom getter](#reusable-list-with-custom-getter)
     - [Store a node in a variable](#store-a-node-in-a-variable-and-get-multiple-subparts-from-the-stored-variable)
     - [Skip to Alias — Quick navigation ✨ NEW](#skip-to-alias--quick-navigation-to-deeply-nested-nodes--new)
 
 - [Advanced](#advanced)
-  - [Building the Tree — Tips](#building-the-tree--tips)
   - [Testing Layout Setup](#testing-layout-setup)
-  - [UI Tips](#ui-tips)
   - [Testing Dynamic Layout](#testing-dynamic-layout)
   - [Reuse Tree Branches Across UIs](#reuse-tree-branches-across-uis)
 - [Security](#security)
@@ -135,11 +136,12 @@ test('heading is visible', async ({ page }) => {
 ### Node methods
 
 - `await node.get()` — returns a wrapped `Locator` with `.debug()`, `.expectChain()` helpers.
-- `node.inspect()` — logs the locator selector chain and returns the node for chaining.
 - `await node.debug()` — print a pretty HTML snapshot of the matched element.
 - `await node.expectChain()` — chainable async matchers mirroring Playwright `expect`.
+- `node.inspect()` — logs the locator selector chain and returns the node for chaining.
 - `node.<child>()` — move into a child node defined in `children`.
 - `node.<customName>(...args)` — call a custom getter method defined on the node (must accept `ctx` first and return a `Locator`). This is useful if you need to select multiple parts of a node.
+- `node.skipToAlias()` — returns an object containing all aliased descendant nodes, allowing direct navigation to deeply nested nodes without traversing the full path.
 
 ### Quick Tour
 
@@ -159,7 +161,7 @@ await home
   .inspect() // print [INSPECT] :root >> body >> heading
   .title()
   .inspect() // print [INSPECT] :root >>  body >> heading >> h1
-  ,get()
+  .get()
 
 // use chained expectations
 await home.heading().title()
@@ -172,6 +174,19 @@ await home.heading()
   .gitHubLinks()
   .getButtonByType('star'); // custom getter
 ```
+
+### Building the Tree — Tips
+
+- Keep nodes small and focused: each node should represent a meaningful UI fragment (header, list, item).
+- Prefer composition over deep nesting: group related nodes under a parent rather than creating long access chains.
+- Use `custom` getters for repeated or parameterized selections instead of inline locators.
+- Return early from `build` with the narrowest locator possible so children can scope from it.
+
+### UI Tips
+
+- Name nodes by their role or intent (e.g., `navMain`, `productCard`) rather than DOM details.
+- Avoid brittle selectors: prefer data attributes like `data-testid` when available.
+- When a UI fragment is reused across pages, keep it as a separate subtree and import it into page descriptions.
 
 ## Examples
 
@@ -315,6 +330,47 @@ await home
   .toBeVisible();
 ```
 
+#### Reusable list with custom getter
+
+```ts
+const treeDescription = defineTree({
+  app: {
+    build: (ctx: Ctx) => {
+      ctx.locator = ctx.page.locator('#app');
+    },
+    children: {
+      userList: {
+        build: (ctx: Ctx) => {
+          ctx.locator = ctx.locator.locator('.users');
+        },
+        custom: {
+          getItemByPosition: (ctx: Ctx, i: number) => {
+            return ctx.locator.locator(`.user:nth-child(${i})`);
+          },
+        },
+      },
+    },
+  },
+});
+
+const root = reselectTree(treeDescription)(page);
+
+// Access multiple list item
+await root
+  .app()
+  .userList()
+  .getItemByPosition(1) // <- item 1
+  .expectChain()
+  .toHaveText('First User');
+
+await root
+  .app()
+  .userList()
+  .getItemByPosition(2) // <- item 2
+  .expectChain()
+  .toHaveText('Second User');
+```
+
 ### Store a node in a variable and get multiple subparts from the stored variable
 
 Use a variable to cache a subtree when you need multiple operations on it.
@@ -346,17 +402,31 @@ Tag an `alias` property to any node you want to access quickly:
 ```ts
 ...
  nodeName: {
-  alias: 'aliasName'
- }
+  alias: 'aliasName',
+  build: (ctx: Ctx) => { 
  ...
 ```
 
 #### Use skipToAlias() to jump directly to aliased nodes
 
-Instead of traversing the entire tree, hop over!:
+Instead of traversing the entire tree, hop over! Consider this tree structure:
+
+```
+app
+├── header
+│   ├── topSection
+│   │   └── headerLogo (alias: 'headerLogo') ⭐
+│   └── bottomSection
+│       └── menuBtn (alias: 'menuBtn') ⭐
+└── content
+    └── navigation
+        └── search (alias: 'search') ⭐
+```
+
+With the above structure, you can skip directly to aliased nodes:
 
 ```ts
-// Traditional way - verbose
+// Traditional way - verbose (traversing the full path)
 await root
   .app()
   .header()
@@ -364,7 +434,7 @@ await root
   .navigation()
   .search()
 
-// With skipToAlias
+// With skipToAlias - jump directly to the aliased node
 await root
   .app().skipToAlias()
   .search()
@@ -372,7 +442,11 @@ await root
 // Preferred way to be used
 // extract the aliases from the top level node
 // Access multiple aliased nodes quickly
-const { headerLogo, menuBtn, search } = select(page).app().skipToAlias();
+const { 
+  headerLogo, 
+  menuBtn, 
+  search 
+} = select(page).app().skipToAlias();
 
 ```
 
@@ -384,6 +458,22 @@ const { headerLogo, menuBtn, search } = select(page).app().skipToAlias();
 - **Readable**: Makes test intent clearer by using semantic alias names
 
 #### Scoping rules
+
+The `skipToAlias()` method provides access to aliases from descendant nodes (children and nested children) based on your current position in the tree. Here's a visual representation of the scope hierarchy:
+
+```
+app
+├── header
+│   ├── topSection
+│   │   └── headerLogo (alias: 'headerLogo')
+│   └── bottomSection
+│       └── menuBtn (alias: 'menuBtn')
+└── content
+    └── navigation
+        └── search (alias: 'search')
+```
+
+**Scoping behavior:**
 
 ```ts
 // From root, see all descendant aliases
@@ -430,37 +520,6 @@ await search().press('Enter');
 
 This section gives practical tips for building robust locator trees, structuring tests, and handling dynamic UI updates.
 
-### Building the Tree — Tips
-
-- Keep nodes small and focused: each node should represent a meaningful UI fragment (header, list, item).
-- Prefer composition over deep nesting: group related nodes under a parent rather than creating long access chains.
-- Use `custom` getters for repeated or parameterized selections instead of inline locators.
-- Return early from `build` with the narrowest locator possible so children can scope from it.
-
-Example: reusable list node with a custom getter
-
-```ts
-const treeDescription = defineTree({
-  app: {
-    build: (ctx: Ctx) => {
-      ctx.locator = ctx.page.locator('#app');
-    },
-    children: {
-      userList: {
-        build: (ctx: Ctx) => {
-          ctx.locator = ctx.locator.locator('.users');
-        },
-        custom: {
-          getItemByIndex: (ctx: Ctx, i: number) => {
-            return ctx.locator.locator(`.user:nth-child(${i})`);
-          },
-        },
-      },
-    },
-  },
-});
-```
-
 ### Reuse Tree Branches Across UIs
 
 Extract shared fragments (e.g., a header) into their own subtree and embed them in multiple page trees so you only update selectors once.
@@ -487,7 +546,7 @@ export const header = defineBranch({
   },
 });
 ```
-
+Import header and use it to build the tree at multiple part (write one reuse anywhere)
 ```ts
 import { header } from './headerDescription'
 
@@ -497,7 +556,7 @@ const treeDescription = defineTree({
       ctx.locator = ctx.page.locator('body');
     },
     children: {
-      header,
+      header, // <- home page header
       hero: {
         build: (ctx: Ctx) => {
           ctx.locator = ctx.locator.locator('main');
@@ -510,7 +569,7 @@ const treeDescription = defineTree({
       ctx.locator = ctx.page.locator('body');
     },
     children: {
-      header,
+      header, // <- docs page header
       sidebar: {
         build: (ctx: Ctx) => {
           ctx.locator = ctx.locator.getByRole('navigation');
@@ -559,17 +618,11 @@ test('example', async ({ page }) => {
   await root
     .app()
     .userList()
-    .itemByIndex(1)
+    .getItemByPosition(1)
     .expectChain()
     .toBeVisible();
 });
 ```
-
-### UI Tips
-
-- Name nodes by their role or intent (e.g., `navMain`, `productCard`) rather than DOM details.
-- Avoid brittle selectors: prefer data attributes like `data-testid` when available.
-- When a UI fragment is reused across pages, keep it as a separate subtree and import it into page descriptions.
 
 ### Testing Dynamic Layout
 
@@ -582,14 +635,14 @@ test('example', async ({ page }) => {
 const item = await root
   .app()
   .userList()
-  .getItemByIndex(3);
+  .getItemByPosition(3);
 
 await item.waitFor({ state: 'visible', timeout: 5000 });
 
 await root
   .app()
   .userList()
-  .getItemByIndex(3)
+  .getItemByPosition(3)
   .expectChain()
   .toBeVisible();
 
